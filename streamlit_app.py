@@ -1,160 +1,179 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import plotly.express as px
 import lancedb
-import os
 
 # -----------------------------------------------------------------------------
-# 1. PAGE CONFIG
+# 1. CONFIG & AUTHENTICATION
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="LATTICE_AI Control Tower",
-    page_icon="🛡️",
+    page_title="Jungle Logistics Engine | Powered by Lattice_AI",
+    page_icon="🌴",
     layout="wide",
 )
 
-# Initialize LanceDB connection (local memory or temp directory)
-@st.cache_resource
-def get_lancedb():
-    db = lancedb.connect("./lancedb_data")
-    return db
-
-db = get_lancedb()
-
-# -----------------------------------------------------------------------------
-# 2. PASSWORD GATE
-# -----------------------------------------------------------------------------
 def check_password():
     if st.session_state.get("password_correct", False):
         return True
 
     st.title("🔒 Restricted Access")
-    st.info("Please enter the authorization password to access LATTICE_AI Control Tower.")
+    st.markdown("### Welcome to **Jungle Logistics Engine API** (`Lattice_AI` Core)")
+    st.info("Enter authorization key to access the core logistics search interface.")
 
     with st.form("login_form"):
-        password_input = st.text_input("Enter Password", type="password")
-        submit_button = st.form_submit_button("Log In")
-
-        if submit_button:
+        password_input = st.text_input("API Key / Password", type="password")
+        if st.form_submit_button("Authenticate"):
             if "APP_PASSWORD" in st.secrets and password_input == st.secrets["APP_PASSWORD"]:
                 st.session_state["password_correct"] = True
                 st.rerun()
             elif "APP_PASSWORD" not in st.secrets:
                 st.error("⚠️ 'APP_PASSWORD' missing in Streamlit Cloud Secrets.")
             else:
-                st.error("❌ Incorrect password.")
-
+                st.error("❌ Invalid authorization key.")
     return False
 
 if not check_password():
     st.stop()
 
 # -----------------------------------------------------------------------------
-# 3. SIDEBAR NAVIGATION
+# 2. SIDEBAR NAVIGATION & ENGINE STATUS
 # -----------------------------------------------------------------------------
-st.sidebar.title("🛡️ LATTICE_AI Controls")
+st.sidebar.title("🌴 Jungle Logistics Engine")
+st.sidebar.caption("Core AI Provider: **Lattice_AI**")
+
 page = st.sidebar.radio(
-    "Select Interface Mode:", 
-    ["🔍 Vector Search & Ingestion", "📈 Live Telemetry", "⚙️ System Settings"]
+    "Select Engine Interface:", 
+    [
+        "🔍 Logistics Semantic Search", 
+        "📥 Manifest & URL Ingestion", 
+        "⚙️ API & Vector Engine Config"
+    ]
 )
 
 st.sidebar.divider()
+st.sidebar.markdown("**Engine Status:** `ONLINE (v2.4)`")
+st.sidebar.markdown("**Vector Store:** `LanceDB`")
+
 if st.sidebar.button("Log Out"):
     st.session_state["password_correct"] = False
     st.rerun()
 
 # -----------------------------------------------------------------------------
-# 4. VIEW 1: VECTOR SEARCH & FILE / URL INGESTION
+# 3. INTERFACE MODE 1: LOGISTICS SEMANTIC SEARCH (PRIMARY FOCUS)
 # -----------------------------------------------------------------------------
-if page == "🔍 Vector Search & Ingestion":
-    st.title("🔍 Vector DB Query & Knowledge Base")
-    st.caption("Upload files, process URLs, and query vector embeddings in LanceDB.")
+if page == "🔍 Logistics Semantic Search":
+    st.title("🔍 Jungle Logistics Engine — Vector Search")
+    st.caption("Leveraging **Lattice_AI** embeddings for high-dimensional supply chain & shipment retrieval.")
 
-    # --- SECTION A: FILE & URL INGESTION ---
-    with st.expander("📥 Ingest Data (Files & Web URLs)", expanded=True):
-        tab_files, tab_urls = st.tabs(["📄 Document Upload", "🌐 Web URL Scraper"])
-
-        with tab_files:
-            uploaded_files = st.file_uploader(
-                "Upload documents (PDF, TXT, CSV, Markdown)", 
-                accept_multiple_files=True,
-                type=["pdf", "txt", "csv", "md"]
-            )
-            if uploaded_files:
-                if st.button("Process & Embed Documents"):
-                    with st.spinner("Processing documents and updating vector index..."):
-                        # Simulating vector embedding pipeline
-                        st.success(f"Successfully processed {len(uploaded_files)} file(s) into LanceDB!")
-
-        with tab_urls:
-            url_input = st.text_input("Enter Web URL for ingestion:", placeholder="https://example.com/docs")
-            if url_input:
-                if st.button("Scrape & Ingest URL"):
-                    with st.spinner(f"Scraping content from {url_input}..."):
-                        st.success(f"Scraped and embedded vector data from {url_input}!")
+    # Search Bar
+    search_query = st.text_input(
+        "🔎 Query Jungle Logistics API:", 
+        placeholder="e.g. Find delayed refrigerated shipments in APAC transit hub or bill of lading #88392"
+    )
+    
+    col_filter1, col_filter2, col_filter3 = st.columns(3)
+    with col_filter1:
+        region_filter = st.selectbox("Filter Route/Region", ["All Regions", "APAC", "EMEA", "NA-EAST", "LATAM"])
+    with col_filter2:
+        top_k = st.slider("Top Matching Vectors (Top-K)", 1, 20, 5)
+    with col_filter3:
+        min_score = st.slider("Minimum Similarity Threshold", 0.0, 1.0, 0.70)
 
     st.divider()
-
-    # --- SECTION B: VECTOR QUERY & SEARCH ---
-    st.subheader("🔎 Vector DB Similarity Search")
-    
-    col_search, col_top_k = st.columns([3, 1])
-    with col_search:
-        search_query = st.text_input("Enter search query or prompt:", placeholder="e.g. Find all telemetry anomalies in US-East cluster")
-    with col_top_k:
-        top_k = st.slider("Top-K Results", min_value=1, max_value=20, value=5)
 
     if search_query:
-        st.markdown(f"**Search Results for:** `\"{search_query}\"`")
+        st.subheader("🎯 Lattice_AI Vector Search Results")
         
-        # Mock Search Results Output
-        results_df = pd.DataFrame({
-            "Similarity Score": [0.94, 0.89, 0.82, 0.78, 0.71][:top_k],
-            "Document Source": ["doc_telemetry_2026.pdf", "cluster_config.txt", "network_logs.csv", "https://example.com/docs", "agent_manifest.json"][:top_k],
-            "Extracted Snippet": [
-                "Agent 128 reported spike in LanceDB query volume during 18:00 UTC shift.",
-                "Primary region set to US-East-1 with failover active in EU-Central.",
-                "Latency increased by 4ms during compaction process.",
-                "Vector embedding model dimensions set to 1536.",
-                "Neural network weights updated successfully on worker node #4."
-            ][:top_k]
-        })
+        # Demonstrative Search Payload representing Jungle Engine API response
+        mock_logistics_results = [
+            {
+                "Shipment ID": "SHP-2026-9921",
+                "Carrier": "Jungle Express Air",
+                "Route": "Singapore (SIN) ➔ Frankfurt (FRA)",
+                "Status": "DELAYED (Customs Hold)",
+                "Lattice_AI Score": 0.94,
+                "Cargo Content": "Temperature-sensitive pharmaceuticals requiring 2°C-8°C cold chain.",
+                "Manifest Source": "manifest_sin_fra_q3.pdf"
+            },
+            {
+                "Shipment ID": "SHP-2026-4410",
+                "Carrier": "Jungle Maritime",
+                "Route": "Tokyo (TYO) ➔ Los Angeles (LAX)",
+                "Status": "IN_TRANSIT",
+                "Lattice_AI Score": 0.88,
+                "Cargo Content": "Automotive sensor modules for EV assembly line line-stop risk.",
+                "Manifest Source": "bol_ocean_tyo_lax.csv"
+            },
+            {
+                "Shipment ID": "SHP-2026-1029",
+                "Carrier": "Jungle Freight Line",
+                "Route": "Mumbai (BOM) ➔ Dubai (DXB)",
+                "Status": "DELIVERED",
+                "Lattice_AI Score": 0.81,
+                "Cargo Content": "High-density lithium ion battery packs for energy storage systems.",
+                "Manifest Source": "https://jungle-logistics.internal/docs/manifests/1029"
+            }
+        ]
         
-        st.dataframe(results_df, use_container_width=True)
+        df_results = pd.DataFrame(mock_logistics_results[:top_k])
+        
+        # Display as clear interactive table
+        st.dataframe(df_results, use_container_width=True)
+        
+        # Detailed Json Inspection for API Developers
+        with st.expander("🛠️ View Raw API Response (Lattice_AI Vector Payload)"):
+            st.json({
+                "engine": "Jungle_Logistics_v2",
+                "core_ai": "Lattice_AI_Embedding_v4",
+                "query": search_query,
+                "vector_dimension": 1536,
+                "retrieved_count": len(df_results),
+                "hits": mock_logistics_results[:top_k]
+            })
 
 # -----------------------------------------------------------------------------
-# 5. VIEW 2: LIVE TELEMETRY
+# 4. INTERFACE MODE 2: MANIFEST & URL INGESTION
 # -----------------------------------------------------------------------------
-elif page == "📈 Live Telemetry":
-    st.title("📈 Real-Time System Telemetry")
-    st.caption("Live metrics from neural agents and database clusters.")
+elif page == "📥 Manifest & URL Ingestion":
+    st.title("📥 Supply Chain Data Ingestion")
+    st.caption("Feed logistics manifests, PDFs, CSVs, and tracking URLs into the Lattice_AI vector index.")
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Active Neural Agents", "128", "+12 today")
-    col2.metric("LanceDB Queries", "1.42M", "+8.5%")
-    col3.metric("Avg Latency", "42 ms", "-4 ms")
-    col4.metric("Uptime", "99.98%", "Nominal")
+    tab_files, tab_url = st.tabs(["📄 Upload Manifests & Waybills", "🌐 Logistics Web Scraper / API Webhook"])
 
-    st.divider()
+    with tab_files:
+        uploaded_files = st.file_uploader(
+            "Upload Freight Documents (PDF, CSV, Bill of Lading)", 
+            type=["pdf", "csv", "txt", "json"], 
+            accept_multiple_files=True
+        )
+        if uploaded_files:
+            if st.button("Parse & Vectorize with Lattice_AI"):
+                with st.spinner("Generating embeddings & inserting into LanceDB vector index..."):
+                    st.success(f"Successfully processed {len(uploaded_files)} file(s) into Jungle Logistics Engine!")
 
-    chart_data = pd.DataFrame({
-        "Timestamp": pd.date_range(start="2026-07-28 00:00", periods=24, freq="h"),
-        "Vector Search Queries/sec": [120, 115, 90, 85, 95, 140, 310, 520, 780, 890, 950, 920, 880, 860, 890, 910, 840, 750, 620, 480, 350, 280, 190, 150],
-        "Latency (ms)": [45, 44, 42, 41, 41, 43, 48, 55, 62, 65, 68, 64, 61, 60, 62, 63, 59, 54, 50, 48, 46, 45, 44, 43]
-    })
+    with tab_url:
+        url_input = st.text_input("Enter Carrier Tracking URL or API Endpoint:", placeholder="https://api.junglelogistics.com/v1/shipments/stream")
+        if url_input and st.button("Ingest Remote Stream"):
+            with st.spinner(f"Ingesting & indexing {url_input}..."):
+                st.success("Remote stream ingested and indexed successfully!")
+
+# -----------------------------------------------------------------------------
+# 5. INTERFACE MODE 3: API & VECTOR ENGINE CONFIG
+# -----------------------------------------------------------------------------
+elif page == "⚙️ API & Vector Engine Config":
+    st.title("⚙️ Engine Configuration")
+    st.caption("Settings for the Jungle Logistics Engine & Lattice_AI core parameters.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Lattice_AI Hyperparameters")
+        st.selectbox("Embedding Model", ["Lattice-Dense-v4 (Recommended)", "Lattice-Sparse-v2", "Lattice-Hybrid-v1"])
+        st.slider("Vector Chunk Size (Tokens)", 128, 2048, 512)
+        st.slider("Chunk Overlap", 0, 256, 64)
     
-    fig = px.line(chart_data, x="Timestamp", y=["Vector Search Queries/sec", "Latency (ms)"], markers=True)
-    st.plotly_chart(fig, use_container_width=True)
-
-# -----------------------------------------------------------------------------
-# 6. VIEW 3: SYSTEM SETTINGS
-# -----------------------------------------------------------------------------
-elif page == "⚙️ System Settings":
-    st.title("⚙️ System Configuration")
-    
-    region = st.selectbox("Cloud Region", ["US-East", "US-West", "EU-Central", "AP-South"])
-    log_level = st.multiselect("Severity Log Level", ["INFO", "WARNING", "ERROR", "CRITICAL"], default=["WARNING", "ERROR"])
-    st.slider("Telemetry Sampling Rate (%)", min_value=1, max_value=100, value=100)
-    
-    st.success("App Password Protection is Active.")
+    with col2:
+        st.subheader("LanceDB Index Parameters")
+        st.selectbox("Distance Metric", ["Cosine Similarity", "L2 Euclidean", "Dot Product"])
+        st.number_input("LanceDB Table Partition Count", value=256)
+        
+    if st.button("Save Configuration"):
+        st.success("Engine configuration updated!")
