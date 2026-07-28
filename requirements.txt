@@ -1,0 +1,4 @@
+streamlit
+lancedb
+pandas
+plotly
