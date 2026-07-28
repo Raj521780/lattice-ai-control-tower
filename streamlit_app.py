@@ -1,68 +1,31 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import lancedb
+from auth import require_password
 
 # -----------------------------------------------------------------------------
-# 1. PAGE CONFIGURATION
+# 1. PAGE CONFIGURATION & AUTH
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="LATTICE_AI Control Tower",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="expanded",
 )
 
-# -----------------------------------------------------------------------------
-# 2. BULLETPROOF PASSWORD GATE
-# -----------------------------------------------------------------------------
-def check_password():
-    """Returns True if user enters correct password, otherwise stops execution."""
-    # 1. If already authenticated in this session, keep unlocked
-    if st.session_state.get("password_correct", False):
-        return True
-
-    # 2. Show Login Screen
-    st.title("🔒 Restricted Access")
-    st.markdown("### Welcome to **LATTICE_AI Enterprise Control Tower**")
-    st.info("Please enter the authorization password to access the telemetry dashboard.")
-
-    with st.form("login_form"):
-        password_input = st.text_input("Enter Password", type="password")
-        submit_button = st.form_submit_button("Log In")
-
-        if submit_button:
-            if "APP_PASSWORD" in st.secrets and password_input == st.secrets["APP_PASSWORD"]:
-                st.session_state["password_correct"] = True
-                st.rerun()  # Refresh app into authenticated state
-            elif "APP_PASSWORD" not in st.secrets:
-                st.error("⚠️ 'APP_PASSWORD' is not set in Streamlit Cloud Secrets.")
-            else:
-                st.error("❌ Incorrect password. Please try again.")
-
-    return False
-
-# STOP execution here if password is not verified
-if not check_password():
-    st.stop()
+# Enforce password gate BEFORE anything else renders
+require_password()
 
 # -----------------------------------------------------------------------------
-# 3. MAIN CONTROL TOWER APPLICATION (Visible only when logged in)
+# 2. HOME PAGE DASHBOARD
 # -----------------------------------------------------------------------------
+st.title("🛡️ Home - LATTICE_AI Control Tower")
+st.caption("Live System Telemetry & Vector DB Metrics")
 
-st.title("🛡️ LATTICE_AI Enterprise Control Tower")
-st.caption("Live System Telemetry & Vector DB Vector Search Metrics")
-
-# --- SIDEBAR CONTROLS ---
-st.sidebar.title("Settings & Filters")
-if st.sidebar.button("Log Out"):
-    st.session_state["password_correct"] = False
-    st.rerun()
-
-st.sidebar.divider()
-st.sidebar.header("System Controls")
-region = st.sidebar.selectbox("Select Cloud Region", ["All Regions", "US-East", "US-West", "EU-Central", "AP-South"])
-log_level = st.sidebar.multiselect("Telemetry Severity", ["INFO", "WARNING", "ERROR", "CRITICAL"], default=["INFO", "WARNING", "ERROR"])
+# Sidebar Log Out Button
+with st.sidebar:
+    if st.button("Log Out"):
+        st.session_state["password_correct"] = False
+        st.rerun()
 
 # --- METRIC CARDS ---
 col1, col2, col3, col4 = st.columns(4)
@@ -73,35 +36,18 @@ col4.metric(label="System Uptime", value="99.98%", delta="Nominal")
 
 st.divider()
 
-# --- ANALYTICS & VISUALIZATIONS ---
-col_left, col_right = st.columns([2, 1])
+# --- CHART ---
+chart_data = pd.DataFrame({
+    "Timestamp": pd.date_range(start="2026-07-28 00:00", periods=24, freq="h"),
+    "Vector Search Queries/sec": [120, 115, 90, 85, 95, 140, 310, 520, 780, 890, 950, 920, 880, 860, 890, 910, 840, 750, 620, 480, 350, 280, 190, 150],
+    "Latency (ms)": [45, 44, 42, 41, 41, 43, 48, 55, 62, 65, 68, 64, 61, 60, 62, 63, 59, 54, 50, 48, 46, 45, 44, 43]
+})
 
-with col_left:
-    st.subheader("📈 Real-Time Telemetry Throughput")
-    
-    chart_data = pd.DataFrame({
-        "Timestamp": pd.date_range(start="2026-07-28 00:00", periods=24, freq="h"),
-        "Vector Search Queries/sec": [120, 115, 90, 85, 95, 140, 310, 520, 780, 890, 950, 920, 880, 860, 890, 910, 840, 750, 620, 480, 350, 280, 190, 150],
-        "Latency (ms)": [45, 44, 42, 41, 41, 43, 48, 55, 62, 65, 68, 64, 61, 60, 62, 63, 59, 54, 50, 48, 46, 45, 44, 43]
-    })
-    
-    fig = px.line(
-        chart_data, 
-        x="Timestamp", 
-        y=["Vector Search Queries/sec", "Latency (ms)"],
-        title="Query Volume vs. Response Latency (24h)",
-        markers=True
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-with col_right:
-    st.subheader("⚡ Cluster Health")
-    health_data = pd.DataFrame({
-        "Component": ["Vector Engine", "API Gateway", "Worker Nodes", "Cache Tier"],
-        "Status": ["Healthy", "Healthy", "Warning", "Healthy"],
-        "Load (%)": [68, 42, 89, 23]
-    })
-    st.dataframe(health_data, hide_index=True, use_container_width=True)
-
-    st.subheader("🔒 Security Status")
-    st.success("App Password protection is active.")
+fig = px.line(
+    chart_data, 
+    x="Timestamp", 
+    y=["Vector Search Queries/sec", "Latency (ms)"],
+    title="Query Volume vs. Response Latency (24h)",
+    markers=True
+)
+st.plotly_chart(fig, use_container_width=True)
