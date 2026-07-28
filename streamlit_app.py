@@ -14,41 +14,40 @@ st.set_page_config(
 )
 
 # -----------------------------------------------------------------------------
-# 2. PASSWORD PROTECTION GATE
+# 2. BULLETPROOF PASSWORD GATE
 # -----------------------------------------------------------------------------
 def check_password():
-    """Returns True if the user enters the correct password stored in st.secrets."""
+    """Returns True if user enters correct password, otherwise stops execution."""
+    # 1. If already authenticated in this session, keep unlocked
     if st.session_state.get("password_correct", False):
         return True
 
+    # 2. Show Login Screen
     st.title("🔒 Restricted Access")
     st.markdown("### Welcome to **LATTICE_AI Enterprise Control Tower**")
     st.info("Please enter the authorization password to access the telemetry dashboard.")
 
-    # Create password input form
     with st.form("login_form"):
         password_input = st.text_input("Enter Password", type="password")
         submit_button = st.form_submit_button("Log In")
 
-    if submit_button:
-        # Check password against Streamlit Secrets
-        if "APP_PASSWORD" in st.secrets and password_input == st.secrets["APP_PASSWORD"]:
-            st.session_state["password_correct"] = True
-            st.rerun()
-        elif "APP_PASSWORD" not in st.secrets:
-            # Fallback if secrets aren't set up yet on local machine
-            st.warning("⚠️ 'APP_PASSWORD' not found in Secrets. Please add it in Streamlit Cloud settings.")
-        else:
-            st.error("❌ Incorrect password. Please try again.")
+        if submit_button:
+            if "APP_PASSWORD" in st.secrets and password_input == st.secrets["APP_PASSWORD"]:
+                st.session_state["password_correct"] = True
+                st.rerun()  # Refresh app into authenticated state
+            elif "APP_PASSWORD" not in st.secrets:
+                st.error("⚠️ 'APP_PASSWORD' is not set in Streamlit Cloud Secrets.")
+            else:
+                st.error("❌ Incorrect password. Please try again.")
 
     return False
 
-# Stop execution here if password is not verified
+# STOP execution here if password is not verified
 if not check_password():
     st.stop()
 
 # -----------------------------------------------------------------------------
-# 3. MAIN CONTROL TOWER APPLICATION (Executes after password is standard)
+# 3. MAIN CONTROL TOWER APPLICATION (Visible only when logged in)
 # -----------------------------------------------------------------------------
 
 st.title("🛡️ LATTICE_AI Enterprise Control Tower")
@@ -80,7 +79,6 @@ col_left, col_right = st.columns([2, 1])
 with col_left:
     st.subheader("📈 Real-Time Telemetry Throughput")
     
-    # Sample time series data
     chart_data = pd.DataFrame({
         "Timestamp": pd.date_range(start="2026-07-28 00:00", periods=24, freq="h"),
         "Vector Search Queries/sec": [120, 115, 90, 85, 95, 140, 310, 520, 780, 890, 950, 920, 880, 860, 890, 910, 840, 750, 620, 480, 350, 280, 190, 150],
@@ -105,5 +103,5 @@ with col_right:
     })
     st.dataframe(health_data, hide_index=True, use_container_width=True)
 
-    st.subheader("🔒 Active Secrets")
+    st.subheader("🔒 Security Status")
     st.success("App Password protection is active.")
